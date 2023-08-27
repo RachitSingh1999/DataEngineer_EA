@@ -1,0 +1,5 @@
+SELECT user_key, type, date
+FROM prep_user
+WHERE date = '2022-08-01' AND type = 'purchase'
+GROUP BY user_key, type, date
+HAVING COUNT(*) > 1;
