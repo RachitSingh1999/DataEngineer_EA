@@ -1,0 +1,101 @@
+1)
+SELECT user_key, type, date
+FROM prep_user
+WHERE date = '2022-08-01' AND type = 'purchase'
+GROUP BY user_key, type, date
+HAVING COUNT(*) > 1;
+
+2)
+SELECT COUNT(DISTINCT p.user_key) AS num_users_without_login
+FROM prep_user AS p
+LEFT JOIN user_login AS ul ON p.user_key = ul.user_id
+WHERE p.type = 'purchase' AND p.date = '2022-08-01' AND ul.user_id IS NULL;
+
+3)
+-- Records present before backfill but missing after backfill
+SELECT user_key, type, date
+FROM prep_user
+WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+AND (user_key, type, date) NOT IN (
+    SELECT user_key, type, date
+    FROM prep_user_backfill
+    WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+);
+
+-- Records introduced after backfill
+SELECT user_key, type, date
+FROM prep_user_backfill
+WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+AND (user_key, type, date) NOT IN (
+    SELECT user_key, type, date
+    FROM prep_user
+    WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+);
+
+4)
+SELECT p.user_key,
+       MIN(p.date) AS prep_user_first_date,
+       ul.first_login_date AS user_login_first_date
+FROM prep_user AS p
+LEFT JOIN user_login AS ul ON p.user_key = ul.user_id
+GROUP BY p.user_key, ul.first_login_date
+HAVING MIN(p.date) <> ul.first_login_date
+   OR ul.first_login_date IS NULL;
+
+5)
+SELECT du.user_id
+FROM dim_user AS du
+LEFT JOIN prep_user AS pu ON du.date_id = pu.date AND du.user_id = pu.user_key
+WHERE du.date_id = '20220801'  -- Specify the desired date
+  AND du.user_id LIKE '-%'
+  AND pu.user_key IS NULL;
+
+
+6)
+Query with window Function
+WITH RankedScores AS (
+    SELECT
+        date,
+        platform,
+        user_id,
+        score,
+        ROW_NUMBER() OVER (PARTITION BY date, platform ORDER BY score DESC) AS rank
+    FROM prep_score
+)
+SELECT date, platform, user_id, score
+FROM RankedScores
+WHERE rank = 2;
+
+Query without window Function
+SELECT p1.date, p1.platform, p1.user_id, p1.score
+FROM prep_score p1
+WHERE (
+    SELECT COUNT(DISTINCT p2.score)
+    FROM prep_score p2
+    WHERE p1.date = p2.date AND p1.platform = p2.platform AND p1.score < p2.score
+) = 1;
+
+
+7)
+SELECT
+    JSON_EXTRACT(event_params, '$.tid') AS title,
+    JSON_EXTRACT(event_params, '$.plat') AS platform,
+    COUNT(DISTINCT user_id) AS distinct_users
+FROM raw_events
+GROUP BY title, platform;
+
+
+
+8)
+SELECT
+    user_id,
+    JSON_EXTRACT(event_params, '$.character_attr[0].selection') AS selection_1,
+    JSON_EXTRACT(event_params, '$.character_attr[0].type') AS type_1,
+    JSON_EXTRACT(event_params, '$.character_attr[0].target') AS target_1,
+    JSON_EXTRACT(event_params, '$.character_attr[1].selection') AS selection_2,
+    JSON_EXTRACT(event_params, '$.character_attr[1].type') AS type_2,
+    JSON_EXTRACT(event_params, '$.character_attr[1].target') AS target_2,
+    -- Continue for other attributes if needed
+    platform,
+    date
+FROM raw_events;
