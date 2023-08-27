@@ -1,0 +1,8 @@
+SELECT p.user_key,
+       MIN(p.date) AS prep_user_first_date,
+       ul.first_login_date AS user_login_first_date
+FROM prep_user AS p
+LEFT JOIN user_login AS ul ON p.user_key = ul.user_id
+GROUP BY p.user_key, ul.first_login_date
+HAVING MIN(p.date) <> ul.first_login_date
+   OR ul.first_login_date IS NULL;
