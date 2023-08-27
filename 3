@@ -1,0 +1,19 @@
+-- Records present before backfill but missing after backfill
+SELECT user_key, type, date
+FROM prep_user
+WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+AND (user_key, type, date) NOT IN (
+    SELECT user_key, type, date
+    FROM prep_user_backfill
+    WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+);
+
+-- Records introduced after backfill
+SELECT user_key, type, date
+FROM prep_user_backfill
+WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+AND (user_key, type, date) NOT IN (
+    SELECT user_key, type, date
+    FROM prep_user
+    WHERE date BETWEEN '2022-08-01' AND '2022-08-05'
+);
