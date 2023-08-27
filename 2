@@ -1,0 +1,4 @@
+SELECT COUNT(DISTINCT p.user_key) AS num_users_without_login
+FROM prep_user AS p
+LEFT JOIN user_login AS ul ON p.user_key = ul.user_id
+WHERE p.type = 'purchase' AND p.date = '2022-08-01' AND ul.user_id IS NULL;
